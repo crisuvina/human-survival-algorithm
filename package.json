@@ -1,0 +1,58 @@
+{
+  "name": "human-survival-algorithm",
+  "version": "0.1.0",
+  "description": "An algorithm that optimizes for human flourishing instead of engagement.",
+  "main": "api_server.js",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/human-survival-algorithm/core"
+  },
+  "author": "Human Survival Algorithm Community",
+  "keywords": [
+    "flourishing",
+    "wellbeing",
+    "social-media",
+    "algorithm",
+    "human-survival",
+    "open-source",
+    "ai-ethics"
+  ],
+  "scripts": {
+    "start":        "node api_server.js",
+    "dev":          "nodemon api_server.js",
+    "test":         "jest --coverage",
+    "test:watch":   "jest --watch",
+    "migrate":      "node database/migrate.js",
+    "seed":         "node database/seed.js",
+    "lint":         "eslint . --ext .js",
+    "docker:build": "docker build -t human-survival-algorithm .",
+    "docker:run":   "docker-compose up",
+    "audit":        "node scripts/audit_transparency.js"
+  },
+  "dependencies": {
+    "express":              "^4.18.2",
+    "express-rate-limit":   "^7.1.5",
+    "pg":                   "^8.11.3",
+    "redis":                "^4.6.10",
+    "dotenv":               "^16.3.1",
+    "helmet":               "^7.1.0",
+    "cors":                 "^2.8.5",
+    "winston":              "^3.11.0",
+    "joi":                  "^17.11.0",
+    "uuid":                 "^9.0.1",
+    "axios":                "^1.6.2",
+    "bcryptjs":             "^2.4.3",
+    "jsonwebtoken":         "^9.0.2",
+    "node-cron":            "^3.0.3"
+  },
+  "devDependencies": {
+    "jest":         "^29.7.0",
+    "nodemon":      "^3.0.2",
+    "eslint":       "^8.54.0",
+    "supertest":    "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

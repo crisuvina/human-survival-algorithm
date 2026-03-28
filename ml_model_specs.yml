@@ -1,0 +1,311 @@
+# ============================================================
+#  ML MODEL TRAINING SPECIFICATIONS v0.1
+#  Human Survival Algorithm — Model Architecture Guide
+#
+#  This document specifies how to train the ML models
+#  that power each scoring engine. These replace the
+#  stub functions in the engine files with real inference.
+#
+#  Philosophy: Every model here is trained on human wisdom,
+#  not engagement data. The training sets are built from
+#  humans labeling what flourishing looks like —
+#  not what gets the most clicks.
+# ============================================================
+
+models:
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 1: EMOTIONAL TONE CLASSIFIER
+  #  Powers: wellbeing_analyzer.js → analyzeEmotionalTone()
+  # ════════════════════════════════════════════════════════════
+  emotional_tone_classifier:
+    purpose: >
+      Classify the dominant emotion in a piece of content
+      across the full taxonomy (awe, gratitude, fear, outrage, etc.)
+      and estimate intensity per emotion (0.0 - 1.0).
+
+    architecture: roberta-base
+    fine_tuning_approach: multi-label classification
+    output: >
+      JSON object with probability score per emotion class.
+      { "awe": 0.82, "gratitude": 0.71, "outrage": 0.03, ... }
+
+    training_data:
+      size_target: 50_000 labeled examples
+      label_method: >
+        3 human raters per example. Consensus required for inclusion.
+        Raters are trained on the emotional taxonomy definitions.
+      sources:
+        - Crowdsourced annotation (compensated fairly)
+        - Expert psychologist review of edge cases
+        - Synthetic examples for underrepresented emotions
+      class_balance: >
+        Oversample rare positive emotions (awe, transcendence) which
+        are underrepresented in natural text but critical to detect.
+
+    evaluation:
+      primary_metric:   macro_f1
+      target:           0.82
+      human_agreement:  measure inter-rater reliability (Cohen's kappa > 0.7)
+
+    known_challenges:
+      - Sarcasm and irony (a hateful post written sarcastically)
+      - Cultural variation in emotional expression
+      - Mixed emotional content (joyful AND melancholy simultaneously)
+
+    retraining_schedule: monthly + triggered by > 500 human corrections
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 2: PSYCHOLOGICAL SAFETY DETECTOR
+  #  Powers: wellbeing_analyzer.js → analyzePsychologicalSafety()
+  # ════════════════════════════════════════════════════════════
+  psychological_safety_detector:
+    purpose: >
+      Detect the presence of psychological safety markers
+      (growth_mindset, shared_humanity, etc.) and unsafe markers
+      (helplessness_induction, identity_threat, etc.) in content.
+
+    architecture: roberta-base
+    fine_tuning_approach: multi-label token + sequence classification
+    output: >
+      Probability score per safety marker.
+      { "helplessness_induction": 0.84, "agency_restoration": 0.12, ... }
+
+    training_data:
+      size_target: 30_000 labeled examples
+      label_method: >
+        Clinical psychologists and mental health professionals
+        label examples. High expertise requirement — this is not
+        suitable for general crowdsourcing.
+      special_requirement: >
+        At least 20% of training examples must be adversarial:
+        content that appears safe but is subtly harmful, and
+        content that appears harsh but is actually healing.
+        The model must learn nuance, not surface pattern.
+
+    evaluation:
+      primary_metric:   precision_at_high_recall
+      note: >
+        We accept lower precision to maintain high recall on unsafe markers.
+        False negatives (missing harm) are worse than false positives.
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 3: MANIPULATION TACTIC DETECTOR
+  #  Powers: truth_engine.js → detectManipulationTactics()
+  # ════════════════════════════════════════════════════════════
+  manipulation_detector:
+    purpose: >
+      Detect 15 categories of psychological manipulation tactics
+      in content. This is the most critical model in the system.
+
+    architecture: deberta-v3-base
+    fine_tuning_approach: >
+      Multi-label sequence classification with hierarchical attention.
+      DeBERTa chosen for its superior performance on nuanced
+      language understanding tasks.
+
+    output: >
+      Probability per tactic, 0.0 - 1.0.
+      { "fear_amplification": 0.91, "tribal_activation": 0.76, ... }
+
+    training_data:
+      size_target: 100_000 labeled examples
+      label_method: >
+        Mixed panel: rhetoric experts, persuasion researchers,
+        journalists, and trained crowdworkers.
+        Each tactic has its own annotation guidelines document.
+      data_sources:
+        - Known propaganda archives (labeled by researchers)
+        - Advertising copy (consent obtained)
+        - Political messaging datasets
+        - Balanced non-manipulative content for negative examples
+      critical_balance: >
+        50% of training data must be non-manipulative content.
+        Without this, model learns to flag everything as manipulation.
+
+    evaluation:
+      primary_metric:   per_class_f1
+      minimum_per_class: 0.75
+      zero_tolerance:   >
+        The model must NEVER flag content as manipulation with
+        > 0.7 confidence when 3+ expert raters agree it is not.
+        This prevents the algorithm from silencing legitimate
+        persuasion, advocacy, and emotional expression.
+
+    adversarial_testing:
+      - Test against known propaganda techniques not in training set
+      - Test against satirical content (must not be flagged)
+      - Test against advocacy and activism (must not be flagged)
+      - Test against emotional personal stories (must not be flagged)
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 4: EPISTEMIC QUALITY SCORER
+  #  Powers: truth_engine.js → analyzeReasoningQuality()
+  #                           → analyzeIntellectualHonesty()
+  # ════════════════════════════════════════════════════════════
+  epistemic_quality_scorer:
+    purpose: >
+      Score the epistemic quality of content: how well-reasoned,
+      intellectually honest, and epistemically humble it is.
+      Separate from factual accuracy — a post can be factually
+      correct but epistemically poor (e.g. cherry-picking data).
+
+    architecture: longformer-base-4096
+    note: >
+      Longformer used because epistemic quality often requires
+      reading the full document, not just the first paragraph.
+
+    fine_tuning_approach: regression (score 0.0 - 1.0) + multi-label
+
+    training_data:
+      size_target: 40_000 examples
+      label_method: >
+        Epistemology researchers and science communicators.
+        Examples span: scientific papers, opinion journalism,
+        social media threads, long-form essays, political speeches.
+      scoring_rubric:
+        - Does it distinguish claims from evidence? (0-25 pts)
+        - Does it acknowledge uncertainty appropriately? (0-25 pts)
+        - Does it address strong counterarguments? (0-25 pts)
+        - Is its certainty proportional to evidence strength? (0-25 pts)
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 5: CONNECTION DEPTH CLASSIFIER
+  #  Powers: connection_engine.js → measureConnectionDepth()
+  #                               → classifyConnectionType()
+  # ════════════════════════════════════════════════════════════
+  connection_classifier:
+    purpose: >
+      Classify the type and depth of human connection that
+      a piece of content enables or expresses.
+
+    architecture: roberta-base
+    fine_tuning_approach: multi-class + regression
+
+    training_data:
+      size_target: 25_000 examples
+      label_method: >
+        Relationship researchers and social psychologists.
+        Particular attention to distinguishing genuine vulnerability
+        from performed vulnerability (the "oversharing for likes" pattern).
+      hard_cases:
+        - Content expressing grief (can be deeply connecting OR parasocial bait)
+        - Content about political identity (can be tribal OR bridge-building)
+        - Humor (can be bonding OR distancing)
+
+  # ════════════════════════════════════════════════════════════
+  #  MODEL 6: SPIRITUAL/MEANING SCORER
+  #  Powers: flourishing_score.js → computeSpiritualSignal()
+  # ════════════════════════════════════════════════════════════
+  spiritual_meaning_scorer:
+    purpose: >
+      Score content for its capacity to evoke meaning, awe,
+      transcendence, love, compassion, or connection to something
+      larger than the self. The most philosophically challenging
+      model to build — but essential to the system's purpose.
+
+    architecture: roberta-large
+    note: >
+      Larger model needed. Spiritual and meaning-evoking content
+      is often subtle, symbolic, and highly context-dependent.
+
+    fine_tuning_approach: regression (0.0 - 1.0)
+
+    training_data:
+      size_target: 20_000 examples
+      label_method: >
+        Intentionally diverse panel: contemplatives from multiple
+        traditions, secular philosophers, poets, ordinary people
+        who have reported peak experiences.
+        Universal signals are sought — not religiously specific ones.
+        A beautiful scientific insight should score as high as prayer.
+      universality_requirement: >
+        Content must score high across diverse raters regardless of
+        their spiritual tradition or lack thereof. If a score is
+        only high for religious raters, it is NOT universal spiritual
+        content — it is specifically religious content (still valid,
+        but different).
+
+  # ════════════════════════════════════════════════════════════
+  #  AFTERGLOW MODEL (Longitudinal)
+  #  The ground truth signal — trained differently from others
+  # ════════════════════════════════════════════════════════════
+  afterglow_predictor:
+    purpose: >
+      Predict how a user will feel 10-15 minutes after consuming
+      a piece of content. This is the single most important
+      signal in the system. Everything else is a proxy.
+      This is the ground truth.
+
+    architecture: >
+      Two-stage model:
+      Stage 1: Embed content using existing content models
+      Stage 2: Train regression head on (content_embedding, user_state) → mood_delta
+
+    training_data:
+      source: >
+        Opt-in mood check-in data from real users.
+        Users see content → check in mood before → check in mood 15 min later.
+        This is ONLY built from users who explicitly opt in.
+        No inferring mood from behavior. Only direct self-report.
+      minimum_size_to_deploy: >
+        10,000 check-ins per content category before deploying predictions
+        for that category. Below this threshold, use 0.5 (neutral) default.
+      privacy:
+        - All mood data is anonymized before training
+        - User IDs are salted hashes — cannot be reverse-mapped
+        - Users can delete their check-in history at any time
+
+    retraining: weekly on new check-in data
+
+# ════════════════════════════════════════════════════════════
+#  INFERENCE INFRASTRUCTURE
+# ════════════════════════════════════════════════════════════
+
+inference:
+  serving: >
+    Models served via TorchServe or HuggingFace Inference Endpoints.
+    All models run async in parallel — total inference latency
+    target: < 200ms per content item.
+
+  caching: >
+    Content signals cached in Redis with 24hr TTL.
+    Content that has been seen by > 1000 users is pre-scored
+    and cached. Only novel content requires real-time inference.
+
+  fallback: >
+    If any model fails, use 0.5 (neutral) for that dimension.
+    Never block a feed request because inference is slow.
+    Degrade gracefully.
+
+  cost_management: >
+    Full inference pipeline runs on first encounter with content.
+    Subsequent requests use cached scores.
+    Estimated cost: ~$0.001 per unique content item scored.
+
+# ════════════════════════════════════════════════════════════
+#  TRAINING GOVERNANCE
+# ════════════════════════════════════════════════════════════
+
+training_governance:
+  oversight: >
+    All training data, model cards, and evaluation results
+    are published publicly before models are deployed.
+    Community can review and flag concerns.
+
+  model_cards: >
+    Every model has a published model card documenting:
+    training data sources, known biases, failure modes,
+    evaluation results, and intended use constraints.
+
+  bias_auditing: >
+    Before deployment, every model is audited for:
+    - Racial and cultural bias
+    - Political bias (model must not systematically
+      favor one political tradition's content)
+    - Socioeconomic bias
+    - Language and dialect bias
+
+  red_teaming: >
+    External red team hired to find failure modes before
+    each major model release. Report published publicly.

@@ -1,0 +1,99 @@
+# ============================================================
+#  docker-compose.yml
+#  Human Survival Algorithm — Full Stack
+#
+#  Services:
+#  - api       : The algorithm API server
+#  - postgres  : Primary database
+#  - redis     : Session store and caching
+#  - adminer   : Database admin UI (dev only)
+# ============================================================
+
+version: '3.9'
+
+services:
+
+  # ── API SERVER ────────────────────────────────────────────
+  api:
+    build: .
+    container_name: hsa-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV:       ${NODE_ENV:-production}
+      PORT:           3000
+      DATABASE_URL:   postgres://hsa:${POSTGRES_PASSWORD}@postgres:5432/hsa
+      REDIS_URL:      redis://redis:6379
+      JWT_SECRET:     ${JWT_SECRET}
+      LOG_LEVEL:      ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hsa-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── POSTGRES ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: hsa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       hsa
+      POSTGRES_USER:     hsa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - hsa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hsa -d hsa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── REDIS ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hsa-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - hsa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── ADMINER (dev only) ────────────────────────────────────
+  adminer:
+    image: adminer
+    container_name: hsa-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - hsa-network
+    profiles:
+      - dev   # Only starts with: docker-compose --profile dev up
+
+# ── VOLUMES ───────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+
+# ── NETWORKS ──────────────────────────────────────────────────
+networks:
+  hsa-network:
+    driver: bridge
