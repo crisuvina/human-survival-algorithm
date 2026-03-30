@@ -94,7 +94,7 @@ git
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/YOUR_USERNAME/human-survival-algorithm.git
+git clone https://github.com/crisuvina/human-survival-algorithm.git
 cd human-survival-algorithm
 
 # 2. Install dependencies
